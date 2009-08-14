@@ -130,10 +130,10 @@ sendemail(Fsm,Message) ->
 %%
 %% use mail_from/2 to send SMTP mail from:
 mail_from(Fsm,Address) -> 
-    gen_fsm:sync_send_event(Fsm,{mfrom,Address}).
+    gen_fsm:sync_send_event(Fsm,{mfrom,format_address(Address)}).
 %% use rcpt_to/2 to send SMTP rcpt to:
 rcpt_to(Fsm,Address) -> 
-    gen_fsm:sync_send_event(Fsm,{rcpt_to,Address}).
+    gen_fsm:sync_send_event(Fsm,{rcpt_to,format_address(Address)}).
 %% use message/2 to send email content
 message(Fsm,Message) -> 
     case gen_fsm:sync_send_event(Fsm,data) of
@@ -474,6 +474,24 @@ socket_send({gen_tcp, S}, Msg) ->
     gen_tcp:send(S, Msg);
 socket_send({ssl, S}, Msg) ->
     ssl:send(S, Msg).
+
+%% format a From or To address
+%% "John Smith <john@smith.name>" is untouched
+%% but "john@smith.name" becomes "<john@smith.name>"
+%% Applies recursively to a list of addresses
+format_address(Address) ->
+	case lists:flatten(Address) of
+		Address ->
+			case string:str(Address, "<") of
+				0 -> "<" ++ Address ++ ">";
+				_ -> Address
+			end;
+	  _ -> % this is a list of addresses
+			lists:map(
+				fun(A) -> format_address(A) end,
+				Address
+			)
+	end.
 
 %% listens for smtp response & parses to get code
 get_response(Socket) ->
